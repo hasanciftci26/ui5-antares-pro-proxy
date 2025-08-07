@@ -1,0 +1,32 @@
+{
+  "name": "ui5-antares-pro-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Custom proxy middleware to test UI5 Antares Pro library locally in SAPUI5 applications.",
+  "main": "dist/middleware.js",
+  "scripts": {
+    "build": "tsc --build",
+    "prepack": "npm run build"
+  },
+  "files": [
+    "dist",
+    "ui5.yaml",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "sapui5",
+    "proxy",
+    "antares",
+    "middleware"
+  ],
+  "author": "hasanciftcii26@gmail.com",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "http-proxy-middleware": "^3.0.5"
+  }
+}

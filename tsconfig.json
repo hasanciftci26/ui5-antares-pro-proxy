@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "skipLibCheck": true,
+        "allowJs": false,
+        "strict": true,
+        "strictPropertyInitialization": false,
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "sourceMap": false,
+        "inlineSourceMap": false,
+        "types": [
+            "express",
+            "http-proxy-middleware"
+        ]
+    },
+    "include": [
+        "src"
+    ]
+}
