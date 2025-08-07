@@ -8,6 +8,9 @@
     "build": "tsc --build",
     "prepack": "npm run build"
   },
+  "repository": {
+    "url": "https://github.com/hasanciftci26/ui5-antares-pro-proxy"
+  },
   "files": [
     "dist",
     "ui5.yaml",
