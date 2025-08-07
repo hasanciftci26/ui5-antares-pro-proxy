@@ -43,7 +43,7 @@ The `ui5-antares-pro-proxy` middleware is introduced to fix this by taking over 
        - name: fiori-tools-proxy
          afterMiddleware: compression
          configuration:
-           ignoreCertError:
+           ignoreCertError: true
            ui5:                             # ❌ REMOVE THIS BLOCK
              path:
                - /resources
@@ -67,7 +67,7 @@ The `ui5-antares-pro-proxy` middleware is introduced to fix this by taking over 
        - name: fiori-tools-proxy
          afterMiddleware: compression
          configuration:
-           ignoreCertError:
+           ignoreCertError: true
            backend:
              - path: /sap
                url: https://your.backend.url
@@ -98,7 +98,7 @@ The `ui5-antares-pro-proxy` middleware is introduced to fix this by taking over 
        - name: fiori-tools-proxy
          afterMiddleware: compression
          configuration:
-           ignoreCertError:
+           ignoreCertError: true
            backend:
              - path: /sap
                url: https://your.backend.url

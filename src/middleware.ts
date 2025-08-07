@@ -1,19 +1,16 @@
 import { NextFunction, Request, Response } from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
-let manifest: Manifest | undefined;
 let proxy: ReturnType<typeof createProxyMiddleware> | undefined;
 
 async function loadManifest(rootProject: ReaderCollection): Promise<Manifest | undefined> {
-    if (!manifest) {
-        const files = await rootProject.byGlob("**/manifest.json");
+    const files = await rootProject.byGlob("**/manifest.json");
 
-        if (files?.length > 0) {
-            manifest = JSON.parse(await files[0].getString());
-        }
+    if (files?.length > 0) {
+        return JSON.parse(await files[0].getString());
+    } else {
+        return;
     }
-
-    return manifest;
 }
 
 function getUi5Routes(options: Options) {
@@ -28,19 +25,30 @@ function getUi5Routes(options: Options) {
     }
 }
 
-export default function ({ log, options, resources }: MiddlewareParameters) {
+export default async function ({ log, options, resources }: MiddlewareParameters) {
     log.info("Starting ui5-antares-pro-proxy middleware...");
 
-    return async function (req: Request, res: Response, next: NextFunction) {
+    const manifest = await loadManifest(resources.rootProject);
+    const ui5Routes = getUi5Routes(options);
+    let version: string | undefined;
+
+    if (options.configuration?.ui5?.version) {
+        version = options.configuration.ui5.version;
+        log.info(`Using UI5 version ${version} based on the proxy configuration`);
+    } else if (manifest?.["sap.ui5"]?.dependencies?.minUI5Version) {
+        version = manifest["sap.ui5"].dependencies.minUI5Version;
+        log.info(`Using UI5 version ${version} based on manifest.json`);
+    } else {
+        log.info("Using the latest UI5 version because no version was detected in the proxy configuration or manifest.json.");
+    }
+
+    return function (req: Request, res: Response, next: NextFunction) {
         const antaresPath = "/resources/ui5/antares/pro";
 
         if (req.url.startsWith(antaresPath)) {
             return next();
         }
-
-        const manifestContent = await loadManifest(resources.rootProject);
-        const version = options.configuration?.ui5?.version || manifestContent?.["sap.ui5"]?.dependencies?.minUI5Version;
-        const ui5Routes = getUi5Routes(options);
+        
         let ui5Url = options.configuration?.ui5?.url || "https://ui5.sap.com";
 
         if (version) {
