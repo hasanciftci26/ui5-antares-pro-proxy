@@ -148,6 +148,17 @@ configuration:
 
 You can define multiple paths to ensure that both application resources and test resources are proxied properly.
 
+### ⚠️ UI5 Resource Caching Notice
+
+UI5 resources may be cached by the browser. If recent changes do not appear as expected, this is likely due to the browser's caching mechanism for static UI5 resources.
+
+To ensure you're seeing the latest updates, **please try one of the following**:
+
+- Open the application in **Incognito / Private mode**
+- **Clear your browser cache** and reload the page
+
+This is a common behavior with UI5's resource loading and not related to the proxy itself.
+
 ---
 
 ## ✅ Middleware Responsibility Summary
