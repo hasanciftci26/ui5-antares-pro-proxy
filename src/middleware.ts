@@ -16,6 +16,18 @@ async function loadManifest(rootProject: ReaderCollection): Promise<Manifest | u
     return manifest;
 }
 
+function getUi5Routes(options: Options) {
+    if (options.configuration?.ui5) {
+        if (Array.isArray(options.configuration.ui5.path)) {
+            return options.configuration.ui5.path;
+        } else {
+            return [options.configuration.ui5.path];
+        }
+    } else {
+        return ["/resources", "/test-resources"];
+    }
+}
+
 export default function ({ log, options, resources }: MiddlewareParameters) {
     log.info("Starting ui5-antares-pro-proxy middleware...");
 
@@ -28,13 +40,14 @@ export default function ({ log, options, resources }: MiddlewareParameters) {
 
         const manifestContent = await loadManifest(resources.rootProject);
         const version = options.configuration?.ui5?.version || manifestContent?.["sap.ui5"]?.dependencies?.minUI5Version;
+        const ui5Routes = getUi5Routes(options);
         let ui5Url = options.configuration?.ui5?.url || "https://ui5.sap.com";
 
         if (version) {
             ui5Url += `/${version}`;
         }
 
-        if (req.url.startsWith("/resources") || req.url.startsWith("/test-resources")) {
+        if (ui5Routes.some(route => req.url.startsWith(route))) {
             if (!proxy) {
                 proxy = createProxyMiddleware({
                     target: ui5Url,
@@ -53,17 +66,19 @@ interface MiddlewareParameters {
     log: {
         info: (message: string) => void;
     };
-    options: {
-        configuration?: {
-            ui5?: {
-                path: string | string[];
-                url: string;
-                version?: string;
-            };
-        };
-    };
+    options: Options;
     resources: {
         rootProject: ReaderCollection;
+    };
+}
+
+interface Options {
+    configuration?: {
+        ui5?: {
+            path: string | string[];
+            url: string;
+            version?: string;
+        };
     };
 }
 

@@ -1,87 +1,188 @@
 # UI5 Antares Pro Proxy
 
-UI5 Antares Pro Proxy is a custom proxy middleware that is specifically developed for testing [UI5 Antares Pro](https://ui5-antares-pro.github.io) library within local SAPUI5 applications. 
+**UI5 Antares Pro Proxy** is a custom proxy middleware designed for local testing of the [UI5 Antares Pro](https://ui5-antares-pro.github.io) library within SAPUI5 applications. It resolves conflicts with the standard `fiori-tools-proxy` when serving local custom libraries and ensures that both standard UI5 resources and UI5 Antares Pro resources are correctly loaded during development.
 
-The SAPUI5 applications that are running with `ui5 serve` (@ui5/cli package) or `fiori run` (@sap/ux-ui5-tooling package) command typically includes the `fiori-tools-proxy` middleware to proxy UI5 CDN (https://ui5.sap.com) or backend requests to target URLs. The UI5 resources are loaded through `/resources` path which results in a conflict with the [UI5 Antares Pro](https://ui5-antares-pro.github.io) library which is also loaded through `/resources` path. 
+---
 
-However, custom libraries are not stored at [https://ui5.sap.com](https://ui5.sap.com) address. Instead, they are included into the build result of the applications under the `resources` folder created by the [@ui5/cli](https://www.npmjs.com/package/@ui5/cli) package. In local environment, the `fiori-tools-proxy` middleware forwards requests coming to the `/resources/ui5/antares/pro` path to [https://ui5.sap.com](https://ui5.sap.com) address which results in **404 not found** error.
+## 🎯 Purpose
 
-Consumers of [UI5 Antares Pro](https://ui5-antares-pro.github.io) can install this proxy middleware as a `devDependency` to resolve the local testing issues.
+SAPUI5 applications running locally using `ui5 serve` (from [@ui5/cli](https://www.npmjs.com/package/@ui5/cli)) or `fiori run` (from [@sap/ux-ui5-tooling](https://www.npmjs.com/package/@sap/ux-ui5-tooling)) typically use the `fiori-tools-proxy` middleware, which handles:
 
-## Installation
+- Proxying UI5 resources (`/resources`, `/test-resources`) from the [UI5 CDN](https://ui5.sap.com)
+- Redirecting backend requests (e.g., `/sap`) to target systems
 
-1. Install the package as a `devDependency` in your root folder of SAPUI5 application using the following command:
+However, since **UI5 Antares Pro** is a custom library loaded under the `/resources` path but **not available on the UI5 CDN**, the `fiori-tools-proxy` mistakenly tries to load it from the CDN, resulting in `404 Not Found` errors.
 
-```sh
-npm install --save-dev ui5-antares-pro-proxy
+The `ui5-antares-pro-proxy` middleware is introduced to fix this by taking over the responsibility of proxying **UI5 resources**, while still letting `fiori-tools-proxy` handle backend requests.
+
+---
+
+## 📦 Installation
+
+1. Add the middleware as a development dependency:
+
+   ```sh
+   npm install --save-dev ui5-antares-pro-proxy
+   ```
+
+2. Locate the **YAML configuration file** (typically `ui5.yaml` or `ui5-local.yaml`) used with `ui5 serve` or `fiori run`.
+
+   ⚠️ This file defines the middleware behavior for your local development server. The changes described here should be made **in this file**.
+
+3. Remove the `ui5` configuration block from the `fiori-tools-proxy` middleware (to prevent it from handling UI5 requests):
+
+   **Before:**
+
+   ```yaml
+   specVersion: "4.0"
+   metadata:
+     name: your.app.name
+   type: application
+   server:
+     customMiddleware:   
+       - name: fiori-tools-proxy
+         afterMiddleware: compression
+         configuration:
+           ignoreCertError:
+           ui5:                             # ❌ REMOVE THIS BLOCK
+             path:
+               - /resources
+               - /test-resources
+             url: https://ui5.sap.com
+           backend:
+             - path: /sap
+               url: https://your.backend.url
+               client: '200'
+   ```
+
+   **After:**
+
+   ```yaml
+   specVersion: "4.0"
+   metadata:
+     name: your.app.name
+   type: application
+   server:
+     customMiddleware:   
+       - name: fiori-tools-proxy
+         afterMiddleware: compression
+         configuration:
+           ignoreCertError:
+           backend:
+             - path: /sap
+               url: https://your.backend.url
+               client: '200'
+   ```
+
+4. Add the `ui5-antares-pro-proxy` middleware to the configuration file **before** `fiori-tools-proxy`:
+
+> ⚠️ Configuration block is optional. If not specified, the `ui5-antares-pro-proxy` will load UI5 resources from the [https://ui5.sap.com](https://ui5.sap.com) address with the version determined from consumer's `manifest.json` file (**"sap.ui5"."dependencies"."minUI5Version"**).
+
+   ```yaml
+   specVersion: "4.0"
+   metadata:
+     name: your.app.name
+   type: application
+   server:
+     customMiddleware:
+       - name: ui5-antares-pro-proxy
+         afterMiddleware: compression
+         configuration:                     # Optional: Configure UI5 CDN
+           ui5:
+             path:
+               - /resources
+               - /test-resources
+             url: https://ui5.sap.com       # Optional: override with a different CDN
+             version: 1.136.3               # Optional: explicitly define UI5 version
+
+       - name: fiori-tools-proxy
+         afterMiddleware: compression
+         configuration:
+           ignoreCertError:
+           backend:
+             - path: /sap
+               url: https://your.backend.url
+               client: '200'
+
+       - name: fiori-tools-appreload
+         afterMiddleware: compression
+         configuration:
+           port: 35729
+           path: webapp
+           delay: 300
+
+       - name: fiori-tools-preview
+         afterMiddleware: fiori-tools-appreload
+         configuration:
+           flp:
+             theme: sap_horizon
+   ```
+
+---
+
+## ⚙️ UI5 Resource Configuration
+
+By default, the middleware reads the `minUI5Version` from your `manifest.json` to determine the UI5 version:
+
+```json
+{
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0"
+    }
+  }
+}
 ```
 
-2. Remove the `ui5` part from `fiori-tools-proxy` middleware which is located in one of your `yaml` files which serves as a configuration file for the `ui5 serve` or `fiori run` command.
+If needed, you can override both the **url** and **version** in the `ui5.yaml`:
 
 ```yaml
-specVersion: "4.0"
-metadata:
-  name: test.ui5.antares.pro.employeeui
-type: application
-server:
-  customMiddleware:
-    - name: fiori-tools-proxy
-      afterMiddleware: compression
-      configuration:
-        ignoreCertError:
-        # Remove start
-        ui5:
-          path:
-            - /resources
-            - /test-resources
-          url: https://ui5.sap.com
-        # Remove end
-        backend:
-          - path: /sap
-            url: https://sbxs24.solco.global.nttdata.com:44300
-            client: '200'
-    - name: fiori-tools-appreload
-      afterMiddleware: compression
-      configuration:
-        port: 35729
-        path: webapp
-        delay: 300
-    - name: fiori-tools-preview
-      afterMiddleware: fiori-tools-appreload
-      configuration:
-        flp:
-          theme: sap_horizon
+configuration:
+  ui5:
+    path:
+      - /resources
+      - /test-resources
+    url: https://other-ui5-cdn.example.com
+    version: 1.136.3
 ```
 
-3. Add the ui5-antares-pro-proxy middleware.
+You can define multiple paths to ensure that both application resources and test resources are proxied properly.
 
-```yaml
-specVersion: "4.0"
-metadata:
-  name: test.ui5.antares.pro.employeeui
-type: application
-server:
-  customMiddleware:
-    # UI5 Antares Pro Proxy middleware
-    - name: ui5-antares-pro-proxy
-      afterMiddleware: compression
-    - name: fiori-tools-proxy
-      afterMiddleware: compression
-      configuration:
-        ignoreCertError:
-        backend:
-          - path: /sap
-            url: https://sbxs24.solco.global.nttdata.com:44300
-            client: '200'
-    - name: fiori-tools-appreload
-      afterMiddleware: compression
-      configuration:
-        port: 35729
-        path: webapp
-        delay: 300
-    - name: fiori-tools-preview
-      afterMiddleware: fiori-tools-appreload
-      configuration:
-        flp:
-          theme: sap_horizon
-```
+---
+
+## ✅ Middleware Responsibility Summary
+
+<table>
+  <thead>
+    <tr>
+      <th>Concern</th>
+      <th>Middleware</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Standard UI5 libraries (<code>/resources</code>)</td>
+      <td><code>ui5-antares-pro-proxy</code></td>
+    </tr>
+    <tr>
+      <td>UI5 Antares Pro (<code>/resources/ui5/antares/pro</code>)</td>
+      <td><code>ui5-antares-pro-proxy</code></td>
+    </tr>
+    <tr>
+      <td>Backend requests (<code>/sap</code>, etc.)</td>
+      <td><code>fiori-tools-proxy</code></td>
+    </tr>
+  </tbody>
+</table>
+
+This setup ensures full compatibility during local development with both the standard SAPUI5 libraries and the UI5 Antares Pro library, while preserving backend proxy behavior.
+
+---
+
+## 🔗 Related Resources
+
+- [UI5 Antares Pro Documentation](https://ui5-antares-pro.github.io)
+- [@sap/ux-ui5-tooling on npm](https://www.npmjs.com/package/@sap/ux-ui5-tooling)
+- [UI5 Tooling Custom Middleware Guide](https://sap.github.io/ui5-tooling/v4/pages/extensibility/CustomServerMiddleware/)
+
+---
